@@ -8,7 +8,9 @@
 
 import UIKit
 
-class ViewController: UIViewController {
+class ViewController: UIViewController, SettingsViewControllerDelegate, HistoryTableViewControllerDelegate {
+
+    
 
     @IBOutlet weak var fromField: UITextField!
     @IBOutlet weak var toField: UITextField!
@@ -16,12 +18,19 @@ class ViewController: UIViewController {
     @IBOutlet weak var toUnits: UILabel!
     @IBOutlet weak var calculatorHeader: UILabel!
     
+    //var entries : [Conversion] = []
+    var entries : [Conversion] = [
+        Conversion(fromVal: 1, toVal: 1760, mode: .Length, fromUnits: LengthUnit.Miles.rawValue, toUnits: LengthUnit.Yards.rawValue, timestamp: Date.distantPast),
+        Conversion(fromVal: 1, toVal: 4, mode: .Volume, fromUnits: VolumeUnit.Gallons.rawValue, toUnits: VolumeUnit.Quarts.rawValue, timestamp: Date.distantFuture)
+        ]
+    
     var currentMode : CalculatorMode = .Length
     
     override func viewDidLoad() {
         super.viewDidLoad()
         toField.delegate = self
         fromField.delegate = self
+        self.view.backgroundColor = BACKGROUND_COLOR
     }
 
     override func didReceiveMemoryWarning() {
@@ -32,6 +41,15 @@ class ViewController: UIViewController {
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
         super.touchesBegan(touches, with: event)
         self.view.endEditing(true)
+    }
+    
+    func selectEntry(entry: Conversion) {
+        fromField.text = "\(entry.fromVal)"
+        toField.text = "\(entry.toVal)"
+        fromUnits.text = entry.fromUnits
+        toUnits.text = entry.toUnits
+        currentMode = entry.mode
+        calculatorHeader.text = "\(currentMode.rawValue) Conversion Calculator"
     }
     
     @IBAction func calculatePressed(_ sender: UIButton) {
@@ -66,7 +84,9 @@ class ViewController: UIViewController {
                     let convKey =  LengthConversionKey(toUnits: tUnits, fromUnits: fUnits)
                     let toVal = fromVal * lengthConversionTable[convKey]!;
                     dest?.text = "\(toVal)"
+                    entries.append(Conversion(fromVal: fromVal, toVal: toVal, mode: .Length, fromUnits: fromUnits.text!, toUnits: toUnits.text!, timestamp: Date()))
                 }
+                
             case .Volume:
                 var fUnits, tUnits : VolumeUnit
                 if dest == toField {
@@ -80,6 +100,7 @@ class ViewController: UIViewController {
                     let convKey =  VolumeConversionKey(toUnits: tUnits, fromUnits: fUnits)
                     let toVal = fromVal * volumeConversionTable[convKey]!;
                     dest?.text = "\(toVal)"
+                    entries.append(Conversion(fromVal: fromVal, toVal: toVal, mode: .Volume, fromUnits: fromUnits.text!, toUnits: toUnits.text!, timestamp: Date()))
                 }
             }
         }
@@ -90,6 +111,22 @@ class ViewController: UIViewController {
         self.fromField.text = ""
         self.toField.text = ""
         self.view.endEditing(true)
+        switch(currentMode) {
+        case .Volume:
+            fromField.attributedPlaceholder =
+                NSAttributedString(string: "Enter volume in \(fromUnits.text!)", attributes: [NSAttributedStringKey.foregroundColor :
+                    FOREGROUND_COLOR])
+            fromField.attributedPlaceholder =
+                NSAttributedString(string: "Enter volume in \(toUnits.text!)", attributes: [NSAttributedStringKey.foregroundColor :
+                    FOREGROUND_COLOR])
+        case .Length:
+            fromField.attributedPlaceholder =
+                NSAttributedString(string: "Enter length in \(fromUnits.text!)", attributes: [NSAttributedStringKey.foregroundColor :
+                    FOREGROUND_COLOR])
+            fromField.attributedPlaceholder =
+                NSAttributedString(string: "Enter length in \(toUnits.text!)", attributes: [NSAttributedStringKey.foregroundColor :
+                    FOREGROUND_COLOR])
+        }
     }
     
     @IBAction func modePressed(_ sender: UIButton) {
@@ -99,19 +136,59 @@ class ViewController: UIViewController {
             currentMode = .Volume
             fromUnits.text = VolumeUnit.Gallons.rawValue
             toUnits.text = VolumeUnit.Liters.rawValue
-            fromField.placeholder = "Enter length in \(fromUnits.text!)"
-            toField.placeholder = "Enter length in \(toUnits.text!)"
+//            fromField.placeholder =
+//            toField.placeholder = "Enter volume in \(toUnits.text!)"
+            fromField.attributedPlaceholder =
+                NSAttributedString(string: "Enter volume in \(fromUnits.text!)", attributes: [NSAttributedStringKey.foregroundColor :
+                    FOREGROUND_COLOR])
+            fromField.attributedPlaceholder =
+                NSAttributedString(string: "Enter volume in \(toUnits.text!)", attributes: [NSAttributedStringKey.foregroundColor :
+                    FOREGROUND_COLOR])
         case .Volume:
             currentMode = .Length
             fromUnits.text = LengthUnit.Yards.rawValue
             toUnits.text = LengthUnit.Meters.rawValue
-            fromField.placeholder = "Enter volume in \(fromUnits.text!)"
-            toField.placeholder = "Enter volume in \(toUnits.text!)"
+//            fromField.placeholder = "Enter length in \(fromUnits.text!)"
+//            toField.placeholder = "Enter length in \(toUnits.text!)"
+            fromField.attributedPlaceholder =
+                NSAttributedString(string: "Enter length in \(fromUnits.text!)", attributes: [NSAttributedStringKey.foregroundColor :
+                    FOREGROUND_COLOR])
+            fromField.attributedPlaceholder =
+                NSAttributedString(string: "Enter length in \(toUnits.text!)", attributes: [NSAttributedStringKey.foregroundColor :
+                    FOREGROUND_COLOR])
         }
+
         calculatorHeader.text = "\(currentMode.rawValue) Conversion Calculator"
         
     }
     
+    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
+        if segue.identifier == "settingsSegue" {
+            if let  target = segue.destination as? SettingsViewController {
+                target.mode = currentMode
+                target.fUnits = fromUnits.text
+                target.tUnits = toUnits.text
+                target.delegate = self
+            }
+        } else if segue.identifier == "historySegue" {
+            if let  target = segue.destination as? HistoryTableViewController {
+                target.entries = entries
+                target.historyDelegate = self
+            }
+        }
+    }
+    
+    func settingsChanged(fromUnits: LengthUnit, toUnits: LengthUnit)
+    {
+        self.fromUnits.text = fromUnits.rawValue
+        self.toUnits.text = toUnits.rawValue
+    }
+    
+    func settingsChanged(fromUnits: VolumeUnit, toUnits: VolumeUnit)
+    {
+        self.fromUnits.text = fromUnits.rawValue
+        self.toUnits.text = toUnits.rawValue
+    }
 }
 
 extension ViewController : UITextFieldDelegate {
@@ -123,39 +200,4 @@ extension ViewController : UITextFieldDelegate {
         }
     }
 }
-
-struct LengthConversionKey : Hashable {
-    var toUnits : LengthUnit
-    var fromUnits : LengthUnit
-}
-
-let lengthConversionTable : Dictionary<LengthConversionKey, Double> = [
-    LengthConversionKey(toUnits: .Meters, fromUnits: .Meters) : 1.0,
-    LengthConversionKey(toUnits: .Meters, fromUnits: .Yards) : 0.9144,
-    LengthConversionKey(toUnits: .Meters, fromUnits: .Miles) : 1609.34,
-    LengthConversionKey(toUnits: .Yards, fromUnits: .Meters) : 1.09361,
-    LengthConversionKey(toUnits: .Yards, fromUnits: .Yards) : 1.0,
-    LengthConversionKey(toUnits: .Yards, fromUnits: .Miles) : 1760.0,
-    LengthConversionKey(toUnits: .Miles, fromUnits: .Meters) : 0.000621371,
-    LengthConversionKey(toUnits: .Miles, fromUnits: .Yards) : 0.000568182,
-    LengthConversionKey(toUnits: .Miles, fromUnits: .Miles) : 1.0
-]
-
-struct VolumeConversionKey : Hashable {
-    var toUnits : VolumeUnit
-    var fromUnits : VolumeUnit
-}
-
-let volumeConversionTable : Dictionary<VolumeConversionKey, Double> = [
-    VolumeConversionKey(toUnits: .Liters, fromUnits: .Liters) : 1.0,
-    VolumeConversionKey(toUnits: .Liters, fromUnits: .Gallons) : 3.78541,
-    VolumeConversionKey(toUnits: .Liters, fromUnits: .Quarts) : 0.946353,
-    VolumeConversionKey(toUnits: .Gallons, fromUnits: .Liters) : 0.264172,
-    VolumeConversionKey(toUnits: .Gallons, fromUnits: .Gallons) : 1.0,
-    VolumeConversionKey(toUnits: .Gallons, fromUnits: .Quarts) : 0.25,
-    VolumeConversionKey(toUnits: .Quarts, fromUnits: .Liters) : 1.05669,
-    VolumeConversionKey(toUnits: .Quarts, fromUnits: .Gallons) : 4.0,
-    VolumeConversionKey(toUnits: .Quarts, fromUnits: .Quarts) : 1.0
-]
-
 
