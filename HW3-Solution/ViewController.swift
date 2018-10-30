@@ -83,7 +83,7 @@ class ViewController: UIViewController, SettingsViewControllerDelegate, HistoryT
                     let convKey =  LengthConversionKey(toUnits: tUnits, fromUnits: fUnits)
                     let toVal = fromVal * lengthConversionTable[convKey]!;
                     dest?.text = "\(toVal)"
-                    entries.append(Conversion(fromVal: fromVal, toVal: toVal, mode: .Length, fromUnits: fromUnits.text!, toUnits: toUnits.text!, timestamp: Date()))
+                    entries.append(Conversion(fromVal: fromVal, toVal: toVal, mode: .Length, fromUnits: fUnits.rawValue, toUnits: tUnits.rawValue, timestamp: Date()))
                 }
                 
             case .Volume:
@@ -99,7 +99,7 @@ class ViewController: UIViewController, SettingsViewControllerDelegate, HistoryT
                     let convKey =  VolumeConversionKey(toUnits: tUnits, fromUnits: fUnits)
                     let toVal = fromVal * volumeConversionTable[convKey]!;
                     dest?.text = "\(toVal)"
-                    entries.append(Conversion(fromVal: fromVal, toVal: toVal, mode: .Volume, fromUnits: fromUnits.text!, toUnits: toUnits.text!, timestamp: Date()))
+                    entries.append(Conversion(fromVal: fromVal, toVal: toVal, mode: .Volume, fromUnits: fUnits.rawValue, toUnits: tUnits.rawValue, timestamp: Date()))
                 }
             }
         }
