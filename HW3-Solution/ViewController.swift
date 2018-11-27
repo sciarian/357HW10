@@ -7,11 +7,11 @@
 //
 
 import UIKit
+import Firebase
 
 class ViewController: UIViewController, SettingsViewControllerDelegate, HistoryTableViewControllerDelegate {
-
     
-
+    fileprivate var ref : DatabaseReference?
     @IBOutlet weak var fromField: UITextField!
     @IBOutlet weak var toField: UITextField!
     @IBOutlet weak var fromUnits: UILabel!
@@ -30,6 +30,32 @@ class ViewController: UIViewController, SettingsViewControllerDelegate, HistoryT
         toField.delegate = self
         fromField.delegate = self
         self.view.backgroundColor = BACKGROUND_COLOR
+        
+        self.ref = Database.database().reference()
+        self.registerForFireBaseUpdates()
+        
+    }
+    
+    fileprivate func registerForFireBaseUpdates()
+    {
+        self.ref!.child("history").observe(.value, with: { snapshot in
+            if let postDict = snapshot.value as? [String : AnyObject] {
+                var tmpItems = [Conversion]()
+                for (_,val) in postDict.enumerated() {
+                    let entry = val.1 as! Dictionary<String,AnyObject>
+                    let timestamp = entry["timestamp"] as! String?
+                    let origFromVal = entry["origFromVal"] as! Double?
+                    let origToVal = entry["origToVal"] as! Double?
+                    let origFromUnits = entry["origFromUnits"] as! String?
+                    let origToUnits = entry["origToUnits"] as! String?
+                    let origMode = entry["origMode"] as! String?
+                    
+                    tmpItems.append(Conversion(fromVal: origFromVal!, toVal: origToVal!, mode: CalculatorMode(rawValue: origMode!)!, fromUnits: origFromUnits!, toUnits: origToUnits!, timestamp: (timestamp?.dateFromISO8601)!))
+                }
+                self.entries = tmpItems
+            }
+        })
+        
     }
 
     override func didReceiveMemoryWarning() {
@@ -83,7 +109,13 @@ class ViewController: UIViewController, SettingsViewControllerDelegate, HistoryT
                     let convKey =  LengthConversionKey(toUnits: tUnits, fromUnits: fUnits)
                     let toVal = fromVal * lengthConversionTable[convKey]!;
                     dest?.text = "\(toVal)"
-                    entries.append(Conversion(fromVal: fromVal, toVal: toVal, mode: .Length, fromUnits: fUnits.rawValue, toUnits: tUnits.rawValue, timestamp: Date()))
+                    
+                    //add entry to firebase
+                    let entry = Conversion(fromVal: fromVal, toVal: toVal, mode: .Length,
+                                           fromUnits: fUnits.rawValue, toUnits: tUnits.rawValue, timestamp: Date())
+                    let newChild = self.ref?.child("history").childByAutoId()
+                    newChild?.setValue(self.toDictionary(vals: entry))
+                    //entries.append(Conversion(fromVal: fromVal, toVal: toVal, mode: .Length, fromUnits: fUnits.rawValue, toUnits: tUnits.rawValue, timestamp: Date()))
                 }
                 
             case .Volume:
@@ -99,13 +131,30 @@ class ViewController: UIViewController, SettingsViewControllerDelegate, HistoryT
                     let convKey =  VolumeConversionKey(toUnits: tUnits, fromUnits: fUnits)
                     let toVal = fromVal * volumeConversionTable[convKey]!;
                     dest?.text = "\(toVal)"
-                    entries.append(Conversion(fromVal: fromVal, toVal: toVal, mode: .Volume, fromUnits: fUnits.rawValue, toUnits: tUnits.rawValue, timestamp: Date()))
+                    
+                    //add entry to firebase
+                    let entry = Conversion(fromVal: fromVal, toVal: toVal, mode: .Length,
+                                           fromUnits: fUnits.rawValue, toUnits: tUnits.rawValue, timestamp: Date())
+                    let newChild = self.ref?.child("history").childByAutoId()
+                    newChild?.setValue(self.toDictionary(vals: entry))
+                    //entries.append(Conversion(fromVal: fromVal, toVal: toVal, mode: .Volume, fromUnits: fUnits.rawValue, toUnits: tUnits.rawValue, timestamp: Date()))
                 }
             }
         }
         self.view.endEditing(true)
     }
     
+    func toDictionary(vals: Conversion) -> NSDictionary {
+        return [
+            "timestamp": NSString(string: (vals.timestamp.iso8601)),
+            "origFromVal" : NSNumber(value: vals.fromVal),
+            "origToVal" : NSNumber(value: vals.toVal),
+            "origMode" : vals.mode.rawValue,
+            "origFromUnits" : vals.fromUnits,
+            "origToUnits" : vals.toUnits
+        ]
+    }
+
     @IBAction func clearPressed(_ sender: UIButton) {
         self.fromField.text = ""
         self.toField.text = ""
@@ -187,6 +236,38 @@ class ViewController: UIViewController, SettingsViewControllerDelegate, HistoryT
     {
         self.fromUnits.text = fromUnits.rawValue
         self.toUnits.text = toUnits.rawValue
+    }
+}
+
+extension Date {
+    
+    struct Formatter {
+        static let iso8601: DateFormatter = {
+            let formatter = DateFormatter()
+            formatter.calendar = Calendar(identifier: .iso8601)
+            formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSxxx"
+            return formatter
+        }()
+        
+        static let short: DateFormatter = {
+            let formatter = DateFormatter()
+            formatter.dateFormat = "yyyy-MM-dd"
+            return formatter
+        }()
+    }
+    
+    var short: String {
+        return Formatter.short.string(from: self)
+    }
+ 
+    var iso8601: String {
+        return Formatter.iso8601.string(from: self)
+    }
+}
+
+extension String {
+    var dateFromISO8601: Date? {
+        return Date.Formatter.iso8601.date(from: self)
     }
 }
 

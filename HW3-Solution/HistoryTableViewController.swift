@@ -224,7 +224,7 @@ extension Double {
         return (self * divisor).rounded() / divisor
     }
 }
-
+/**
 extension Date {
     struct Formatter {
         static let short: DateFormatter = {
@@ -238,5 +238,5 @@ extension Date {
         return Formatter.short.string(from: self)
     }
 }
-
+**/
 
